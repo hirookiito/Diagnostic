@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIエージェント実装 Readiness診断</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sf-blue: #0176D3;
+    --sf-blue-dark: #014486;
+    --sf-blue-light: #1B96FF;
+    --sf-teal: #06A59A;
+    --sf-purple: #9050E9;
+    --sf-orange: #FE9339;
+    --sf-red: #EA001E;
+    --sf-green: #2E844A;
+    --bg: #F3F3F3;
+    --surface: #FFFFFF;
+    --border: #DDDBDA;
+    --text: #181818;
+    --text-muted: #706E6B;
+    --text-light: #FFFFFF;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.10);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.14);
+  }
+
+  body {
+    font-family: -apple-system, 'Salesforce Sans', BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    background: var(--sf-blue-dark);
+    padding: 0 32px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .header-logo svg { width: 32px; height: 32px; }
+  .header-logo-text {
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .header-divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255,255,255,0.25);
+  }
+  .header-sub {
+    color: rgba(255,255,255,0.75);
+    font-size: 13px;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    background: linear-gradient(135deg, var(--sf-blue-dark) 0%, #032D60 60%, #0B2C6B 100%);
+    padding: 72px 32px 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(1,118,211,0.35) 0%, transparent 70%);
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .hero-badge-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--sf-orange);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .hero h1 span {
+    background: linear-gradient(90deg, #1B96FF, #06A59A);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-sub {
+    font-size: 17px;
+    color: rgba(255,255,255,0.78);
+    max-width: 640px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+    position: relative;
+  }
+  .hero-meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 36px;
+    position: relative;
+  }
+  .hero-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+  }
+  .hero-meta-item svg { width: 15px; height: 15px; opacity: 0.8; }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--sf-blue-light);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px 36px;
+    border-radius: 30px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+    box-shadow: 0 4px 20px rgba(27,150,255,0.45);
+    text-decoration: none;
+    position: relative;
+  }
+  .btn-primary:hover {
+    background: #0561D5;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(27,150,255,0.55);
+  }
+  .btn-primary svg { width: 18px; height: 18px; }
+
+  /* ─── AREAS SECTION ─── */
+  .section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 64px 24px;
+  }
+  .section-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--sf-blue);
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-size: clamp(22px, 3.5vw, 32px);
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.25;
+  }
+  .section-desc {
+    font-size: 15px;
+    color: var(--text-muted);
+    max-width: 560px;
+    line-height: 1.65;
+    margin-bottom: 40px;
+  }
+  .areas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .area-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: var(--shadow);
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .area-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-3px);
+  }
+  .area-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .area-icon svg { width: 22px; height: 22px; }
+  .area-title { font-size: 14px; font-weight: 700; color: var(--text); }
+  .area-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .area-score {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sf-blue);
+    background: #EEF4FF;
+    border-radius: 4px;
+    padding: 2px 8px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  /* ─── DIAGNOSTIC FORM ─── */
+  .diagnostic-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .diag-header {
+    background: linear-gradient(90deg, var(--sf-blue-dark), #0561D5);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .diag-header-left h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .diag-header-left p {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 3px;
+  }
+  .progress-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
+  .progress-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+  }
+  .progress-bar-bg {
+    width: 220px;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--sf-teal);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* Steps nav */
+  .steps-nav {
+    display: flex;
+    overflow-x: auto;
+    background: #F8F8F8;
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .step-tab {
+    flex-shrink: 0;
+    padding: 14px 18px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    cursor: default;
+  }
+  .step-tab.active {
+    color: var(--sf-blue);
+    border-bottom-color: var(--sf-blue);
+  }
+  .step-tab.done {
+    color: var(--sf-green);
+  }
+  .step-tab.done::before {
+    content: '✓ ';
+  }
+
+  /* Form body */
+  .diag-body { padding: 36px 32px 32px; }
+
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  .step-intro {
+    margin-bottom: 28px;
+  }
+  .step-intro h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .step-intro p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+
+  .q-block { margin-bottom: 28px; }
+  .q-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .q-num {
+    background: var(--sf-blue);
+    color: #fff;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    font-size: 11px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .radio-group, .check-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .radio-opt, .check-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 13.5px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .radio-opt:hover, .check-opt:hover {
+    border-color: var(--sf-blue-light);
+    background: #EEF4FF;
+  }
+  .radio-opt input, .check-opt input { margin-top: 2px; flex-shrink: 0; accent-color: var(--sf-blue); }
+  .radio-opt.selected, .check-opt.selected {
+    border-color: var(--sf-blue);
+    background: #EEF4FF;
+  }
+  .opt-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--sf-blue);
+    background: #D3E8FF;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .opt-hint { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .select-field {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23706E6B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+  .select-field:focus { outline: none; border-color: var(--sf-blue); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .form-input {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { outline: none; border-color: var(--sf-blue); }
+  .form-hint { font-size: 11px; color: var(--text-muted); }
+
+  /* Divider */
+  .q-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+
+  /* Nav buttons */
+  .diag-footer {
+    padding: 20px 32px 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: 1.5px solid var(--border);
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-back:hover { border-color: var(--sf-blue); color: var(--sf-blue); }
+  .btn-next {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--sf-blue);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 11px 28px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-next:hover { background: var(--sf-blue-dark); }
+  .btn-next svg, .btn-back svg { width: 16px; height: 16px; }
+
+  /* ─── RESULT SCREEN ─── */
+  #result-screen { display: none; }
+
+  .result-hero {
+    background: linear-gradient(135deg, #032D60, #0B4BA8);
+    padding: 48px 32px 0;
+    text-align: center;
+    position: relative;
+  }
+  .result-score-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: -50px;
+  }
+  .score-circle {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+    margin: 0 auto 16px;
+  }
+  .score-num {
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--sf-blue);
+    line-height: 1;
+  }
+  .score-denom {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .result-type-badge {
+    display: inline-block;
+    background: var(--sf-orange);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 18px;
+    border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .result-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .result-summary {
+    font-size: 15px;
+    color: rgba(255,255,255,0.78);
+    max-width: 560px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+  }
+
+  .result-body {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 80px 24px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 720px) {
+    .result-body { grid-template-columns: 1fr; }
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+  }
+  .result-card.full { grid-column: 1 / -1; }
+  .result-card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .result-card h4 svg { width: 17px; height: 17px; color: var(--sf-blue); }
+
+  /* Score bars */
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .score-row-label { width: 160px; flex-shrink: 0; color: var(--text-muted); font-size: 12px; }
+  .score-bar-bg {
+    flex: 1;
+    height: 8px;
+    background: #EEEEEE;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--sf-blue);
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  }
+  .score-val { width: 48px; text-align: right; font-weight: 700; font-size: 13px; color: var(--text); }
+
+  /* Usecase list */
+  .uc-list { display: flex; flex-direction: column; gap: 8px; }
+  .uc-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text);
+    padding: 8px 12px;
+    background: #F8F8F8;
+    border-radius: 6px;
+  }
+  .uc-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--sf-blue);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Todo list */
+  .todo-list { display: flex; flex-direction: column; gap: 8px; }
+  .todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .todo-item:last-child { border-bottom: none; }
+  .todo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--sf-orange);
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  /* Roadmap */
+  .roadmap { display: flex; flex-direction: column; gap: 0; }
+  .roadmap-phase {
+    display: flex;
+    gap: 16px;
+    padding-bottom: 20px;
+    position: relative;
+  }
+  .roadmap-phase:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 38px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .roadmap-circle {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .roadmap-content h5 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    margin-top: 8px;
+  }
+  .roadmap-content p {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* CTA section */
+  .result-cta {
+    background: linear-gradient(135deg, #032D60, #0176D3);
+    padding: 56px 24px;
+    text-align: center;
+  }
+  .result-cta h3 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .result-cta p {
+    font-size: 15px;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 32px;
+  }
+  .cta-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .btn-cta-primary {
+    background: var(--sf-blue-light);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 32px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-cta-primary:hover { background: #0561D5; }
+  .btn-cta-ghost {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 14px 32px;
+    border-radius: 6px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-cta-ghost:hover { background: rgba(255,255,255,0.2); }
+
+  /* Footer */
+  .footer {
+    background: #032D60;
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+  }
+  .footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
+
+  /* Utility */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: #EEF4FF;
+    color: var(--sf-blue);
+  }
+  .tag.teal { background: #E3F7F6; color: var(--sf-teal); }
+  .tag.orange { background: #FFF0E0; color: var(--sf-orange); }
+  .tag.green { background: #E3F5E1; color: var(--sf-green); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <a class="header-logo" href="#">
+    <!-- Salesforce cloud icon (simplified) -->
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M13.2 8.4C14.2 6.3 16.3 4.8 18.8 4.8c3.4 0 6.2 2.6 6.5 5.9.3-.1.6-.1.9-.1 2.6 0 4.8 2.1 4.8 4.8S28.8 20.2 26.2 20.2H8C5.4 20.2 3.2 18.1 3.2 15.5c0-2.4 1.8-4.4 4.1-4.7.1 0 .2 0 .3 0-.1-.5-.2-1-.2-1.5 0-3.5 2.8-6.3 6.3-6.3.6 0 1.1.1 1.5.2z" fill="#fff"/>
+    </svg>
+    <span class="header-logo-text">Salesforce</span>
+  </a>
+  <div class="header-divider"></div>
+  <span class="header-sub">AIエージェント実装 Readiness診断</span>
+</header>
+
+<!-- HERO / LANDING -->
+<section id="landing-screen">
+  <div class="hero">
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Agentforce &amp; Data 360
+    </div>
+    <h1>AIエージェントは、<span>導入する前に</span><br>7割決まる。</h1>
+    <p class="hero-sub">
+      御社のどの業務を、どの顧客データを使って、どの権限までAIに任せられるか。<br>
+      本診断では、業務・データ・ガバナンスの観点から、AIエージェント実装の準備度を可視化します。
+    </p>
+    <div class="hero-meta">
+      <span class="hero-meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        所要時間 約5分
+      </span>
+      <span class="hero-meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>
+        22問・選択式
+      </span>
+      <span class="hero-meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        個人情報入力不要
+      </span>
+    </div>
+    <button class="btn-primary" onclick="showDiagnostic()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      5分でAIエージェント実装 Readinessを診断する
+    </button>
+  </div>
+
+  <!-- AREAS -->
+  <div class="section">
+    <p class="section-label">診断の5領域</p>
+    <h2 class="section-title">業務・データ・ガバナンスを<br>まるごと可視化</h2>
+    <p class="section-desc">単なるAI活用度チェックではなく、商談化につながる5つの観点で実装可能性を測定します。</p>
+    <div class="areas-grid">
+      <div class="area-card">
+        <div class="area-icon" style="background:#EEF4FF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#0176D3" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </div>
+        <div class="area-title">業務プロセス Readiness</div>
+        <div class="area-desc">AIに任せられる業務単位が定義できているか</div>
+        <span class="area-score">配点 25点</span>
+      </div>
+      <div class="area-card">
+        <div class="area-icon" style="background:#E3F7F6">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#06A59A" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        </div>
+        <div class="area-title">データ Readiness</div>
+        <div class="area-desc">顧客データ・ナレッジが整合した状態か</div>
+        <span class="area-score tag teal">配点 25点</span>
+      </div>
+      <div class="area-card">
+        <div class="area-icon" style="background:#F5EEFF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9050E9" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="area-title">Trust/Governance Readiness</div>
+        <div class="area-desc">AIへの権限・監査・安全設計があるか</div>
+        <span class="area-score" style="background:#F5EEFF;color:#9050E9">配点 20点</span>
+      </div>
+      <div class="area-card">
+        <div class="area-icon" style="background:#FFF0E0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#FE9339" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="area-title">ROI/成果指標 Readiness</div>
+        <div class="area-desc">PoCで終わらせない成果測定が定義されているか</div>
+        <span class="area-score tag orange">配点 15点</span>
+      </div>
+      <div class="area-card">
+        <div class="area-icon" style="background:#E3F5E1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2E844A" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="area-title">推進体制 Readiness</div>
+        <div class="area-desc">実装に進める組織・体制・タイムラインがあるか</div>
+        <span class="area-score tag green">配点 15点</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DIAGNOSTIC FORM -->
+<section id="diagnostic-screen" style="display:none; background:var(--bg); padding:40px 24px 64px;">
+  <div style="max-width:800px; margin:0 auto;">
+    <div class="diagnostic-wrap">
+      <!-- header -->
+      <div class="diag-header">
+        <div class="diag-header-left">
+          <h2>AIエージェント実装 Readiness診断</h2>
+          <p id="step-desc-header">Step 1 / 6 — 基本情報</p>
+        </div>
+        <div class="progress-wrap">
+          <span class="progress-label" id="progress-label">進捗 0%</span>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- step tabs -->
+      <nav class="steps-nav" id="steps-nav">
+        <div class="step-tab active" data-step="0">基本情報</div>
+        <div class="step-tab" data-step="1">業務プロセス</div>
+        <div class="step-tab" data-step="2">データ</div>
+        <div class="step-tab" data-step="3">Trust/Gov</div>
+        <div class="step-tab" data-step="4">ROI/体制</div>
+        <div class="step-tab" data-step="5">連絡先</div>
+      </nav>
+
+      <!-- form body -->
+      <div class="diag-body">
+
+        <!-- STEP 0: 基本情報 -->
+        <div class="step-panel active" id="step-0">
+          <div class="step-intro">
+            <h3>基本情報</h3>
+            <p>診断結果をパーソナライズするために、所属と検討状況をお聞かせください。</p>
+          </div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">1</span>
+              所属部門に最も近いものを選択してください。
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="経営企画/DX推進"> 経営企画 / DX推進</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="情報システム/IT"> 情報システム / IT</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="カスタマーサービス/コンタクトセンター"> カスタマーサービス / コンタクトセンター</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="営業/営業企画"> 営業 / 営業企画</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="マーケティング"> マーケティング</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="データ/分析部門"> データ / 分析部門</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q1')"><input type="radio" name="q1" value="その他"> その他</label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">2</span>
+              AIエージェント活用を検討したい領域はどれですか？
+            </div>
+            <div class="radio-group grid-2">
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="問い合わせ対応"> 問い合わせ対応 / カスタマーサポート</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="営業活動支援"> 営業活動支援</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="マーケティング業務"> マーケティング業務</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="社内問い合わせ/ヘルプデスク"> 社内問い合わせ / ヘルプデスク</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="顧客データ活用"> 顧客データ活用</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q2')"><input type="radio" name="q2" value="まだ決まっていない"> まだ決まっていない</label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">3</span>
+              現在の生成AI / AIエージェント活用状況を教えてください。
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q3')"><input type="radio" name="q3" value="A"> 全社的に活用・検証が進んでいる <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q3')"><input type="radio" name="q3" value="B"> 一部部門でPoC / 試験導入している <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q3')"><input type="radio" name="q3" value="C"> 個人利用や一部業務利用にとどまっている <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q3')"><input type="radio" name="q3" value="D"> 関心はあるが、まだ具体化していない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 1: 業務プロセス -->
+        <div class="step-panel" id="step-1">
+          <div class="step-intro">
+            <h3>業務プロセス Readiness</h3>
+            <p>AIに任せられる業務単位が定義できているかを確認します。</p>
+          </div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">4</span>
+              AIに任せたい業務は、現在どの程度標準化されていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q4')"><input type="radio" name="q4" value="4"> 手順・判断基準・例外対応まで文書化されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q4')"><input type="radio" name="q4" value="3"> 主要な手順は整理されているが、例外対応は属人的 <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q4')"><input type="radio" name="q4" value="2"> 担当者ごとの経験や判断に依存している <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q4')"><input type="radio" name="q4" value="1"> そもそも業務プロセスが可視化されていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">5</span>
+              その業務には、例外対応や個別判断がどの程度含まれますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q5')"><input type="radio" name="q5" value="4"> ほとんど定型業務である <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q5')"><input type="radio" name="q5" value="3"> 一部例外はあるが、判断ルール化できる <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q5')"><input type="radio" name="q5" value="2"> 例外対応が多く、都度判断が必要 <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q5')"><input type="radio" name="q5" value="1"> 顧客・案件ごとに対応が大きく異なる <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">6</span>
+              AIが誤った判断や回答をした場合の影響はどの程度ですか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q6')"><input type="radio" name="q6" value="4"> 社内業務への軽微な影響にとどまる <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q6')"><input type="radio" name="q6" value="3"> 顧客対応品質に影響するが、人による確認で防げる <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q6')"><input type="radio" name="q6" value="2"> 顧客満足度や取引継続に大きく影響する <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q6')"><input type="radio" name="q6" value="1"> 法務・契約・金銭・ブランド毀損リスクが高い <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">7</span>
+              人間が確認・承認すべきポイントは明確ですか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q7')"><input type="radio" name="q7" value="4"> 明確に定義されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q7')"><input type="radio" name="q7" value="3"> 一部は定義されている <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q7')"><input type="radio" name="q7" value="2"> 現場判断に任されている <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q7')"><input type="radio" name="q7" value="1"> 定義されていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">8</span>
+              現在、担当者が時間を取られている業務はどれですか？（複数選択可）
+            </div>
+            <div class="check-group grid-2">
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="情報検索"> 情報検索</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="顧客情報の確認"> 顧客情報の確認</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="対応履歴の確認"> 対応履歴の確認</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="レポート/要約作成"> レポート / 要約作成</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="FAQ/ナレッジ参照"> FAQ / ナレッジ参照</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="メール/チャット文面作成"> メール / チャット文面作成</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="問い合わせ分類"> 問い合わせ分類</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q8" value="次アクション判断"> 次アクション判断</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: データ -->
+        <div class="step-panel" id="step-2">
+          <div class="step-intro">
+            <h3>データ Readiness</h3>
+            <p>AIエージェントが正しい文脈を持てる状態かを確認します。</p>
+          </div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">9</span>
+              対象業務に必要な顧客データは、どの程度統合されていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q9')"><input type="radio" name="q9" value="4"> 主要な顧客データは一元管理されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q9')"><input type="radio" name="q9" value="3"> CRMや業務システムに分かれているが、連携はある <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q9')"><input type="radio" name="q9" value="2"> 複数システムに分散しており、確認に手間がかかる <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q9')"><input type="radio" name="q9" value="1"> どこに何のデータがあるか把握しきれていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">11</span>
+              顧客情報や対応履歴は、最新の状態に保たれていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q11')"><input type="radio" name="q11" value="4"> ほぼリアルタイムに更新されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q11')"><input type="radio" name="q11" value="3"> 定期的に更新されている <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q11')"><input type="radio" name="q11" value="2"> 更新頻度や品質にばらつきがある <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q11')"><input type="radio" name="q11" value="1"> 古い情報や重複が多い <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">12</span>
+              顧客を一意に識別できる状態ですか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q12')"><input type="radio" name="q12" value="4"> 部門・チャネルをまたいで顧客IDが統合されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q12')"><input type="radio" name="q12" value="3"> 一部のシステム間では統合されている <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q12')"><input type="radio" name="q12" value="2"> システムごとに顧客情報が分かれている <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q12')"><input type="radio" name="q12" value="1"> 同一顧客の重複や名寄せ課題が大きい <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">13</span>
+              AIが回答や判断に使うナレッジは整備されていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q13')"><input type="radio" name="q13" value="4"> 一元管理され、定期的に更新されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q13')"><input type="radio" name="q13" value="3"> 主要なFAQ / マニュアルは整備されている <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q13')"><input type="radio" name="q13" value="2"> 複数の場所に分散している <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q13')"><input type="radio" name="q13" value="1"> 担当者の経験や暗黙知に依存している <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: Trust/Governance -->
+        <div class="step-panel" id="step-3">
+          <div class="step-intro">
+            <h3>Trust / Governance Readiness</h3>
+            <p>顧客情報を安全に使い、AIに任せる範囲を制御できるかを確認します。</p>
+          </div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">14</span>
+              AIに利用させてよいデータ / 利用させてはいけないデータは定義されていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q14')"><input type="radio" name="q14" value="4"> データ分類と利用ルールが明確に定義されている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q14')"><input type="radio" name="q14" value="3"> 機密情報や個人情報の基本ルールはある <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q14')"><input type="radio" name="q14" value="2"> ルールはあるが、AI利用を前提にしたものではない <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q14')"><input type="radio" name="q14" value="1"> 明確なルールはない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">15</span>
+              AIによる回答・判断・アクションを後から確認できる必要がありますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q15')"><input type="radio" name="q15" value="4"> 必須。監査証跡が必要 <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q15')"><input type="radio" name="q15" value="3"> 重要な業務では必要 <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q15')"><input type="radio" name="q15" value="2"> 一部ログが残ればよい <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q15')"><input type="radio" name="q15" value="1"> 現時点では考えられていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">16</span>
+              AIに実行させてもよいアクション範囲は決まっていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q16')"><input type="radio" name="q16" value="4"> 参照・提案・実行の範囲が明確に分かれている <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q16')"><input type="radio" name="q16" value="3"> 人間承認付きなら一部実行可能 <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q16')"><input type="radio" name="q16" value="2"> まずは参照・提案に限定したい <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q16')"><input type="radio" name="q16" value="1"> まだ整理できていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">17</span>
+              AI活用に対して、社内で最も大きな懸念は何ですか？（複数選択可）
+            </div>
+            <div class="check-group grid-2">
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="個人情報/機密情報の漏洩"> 個人情報 / 機密情報の漏洩</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="誤回答/ハルシネーション"> 誤回答 / ハルシネーション</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="顧客体験の低下"> 顧客体験の低下</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="法務/コンプライアンス"> 法務 / コンプライアンス</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="既存システムとの連携"> 既存システムとの連携</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="現場の抵抗感"> 現場の抵抗感</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="投資対効果が見えない"> 投資対効果が見えない</label>
+              <label class="check-opt" onclick="toggleCheck(this)"><input type="checkbox" name="q17" value="何から始めるべきか分からない"> 何から始めるべきか分からない</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4: ROI/体制 -->
+        <div class="step-panel" id="step-4">
+          <div class="step-intro">
+            <h3>ROI / 成果指標 &amp; 推進体制 Readiness</h3>
+            <p>PoCで終わらせない成果測定と推進体制を確認します。</p>
+          </div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">20</span>
+              AI活用の成功基準は定義されていますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q20')"><input type="radio" name="q20" value="4"> KPIと目標値が明確にある <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q20')"><input type="radio" name="q20" value="3"> KPI候補はあるが、目標値は未定 <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q20')"><input type="radio" name="q20" value="2"> 効果を測りたいが、指標は未定 <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q20')"><input type="radio" name="q20" value="1"> まだ考えられていない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">21</span>
+              AIエージェント導入を推進する体制はありますか？
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q21')"><input type="radio" name="q21" value="4"> 業務部門・IT・セキュリティ・経営が連携している <span class="opt-badge">A</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q21')"><input type="radio" name="q21" value="3"> 業務部門とITで検討している <span class="opt-badge">B</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q21')"><input type="radio" name="q21" value="2"> 一部の担当者が情報収集している <span class="opt-badge">C</span></label>
+              <label class="radio-opt" onclick="selectRadio(this,'q21')"><input type="radio" name="q21" value="1"> 推進体制はまだない <span class="opt-badge">D</span></label>
+            </div>
+          </div>
+
+          <div class="q-divider"></div>
+
+          <div class="q-block">
+            <div class="q-label">
+              <span class="q-num">22</span>
+              導入検討のタイミングを教えてください。
+            </div>
+            <div class="radio-group">
+              <label class="radio-opt" onclick="selectRadio(this,'q22')"><input type="radio" name="q22" value="hot"> 3ヶ月以内に検討したい</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q22')"><input type="radio" name="q22" value="warm"> 6ヶ月以内に検討したい</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q22')"><input type="radio" name="q22" value="mid"> 1年以内に検討したい</label>
+              <label class="radio-opt" onclick="selectRadio(this,'q22')"><input type="radio" name="q22" value="nurture"> 時期は未定だが情報収集している</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5: 連絡先 -->
+        <div class="step-panel" id="step-5">
+          <div class="step-intro">
+            <h3>診断結果の送付先</h3>
+            <p>診断結果レポートとおすすめのネクストアクションをメールでお送りします。</p>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">お名前 <span style="color:var(--sf-red)">*</span></label>
+              <input class="form-input" type="text" id="inp-name" placeholder="山田 太郎">
+            </div>
+            <div class="form-group">
+              <label class="form-label">会社名 <span style="color:var(--sf-red)">*</span></label>
+              <input class="form-input" type="text" id="inp-company" placeholder="株式会社〇〇">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">メールアドレス <span style="color:var(--sf-red)">*</span></label>
+              <input class="form-input" type="email" id="inp-email" placeholder="yamada@example.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">電話番号</label>
+              <input class="form-input" type="tel" id="inp-tel" placeholder="03-XXXX-XXXX">
+            </div>
+          </div>
+          <div style="margin-top:8px; padding:14px 16px; background:#F8F8F8; border-radius:8px; font-size:12px; color:var(--text-muted); line-height:1.65;">
+            入力いただいた情報は、診断結果のご提供および Salesforce Japan からの営業活動にのみ使用します。
+            第三者への提供は行いません。
+          </div>
+        </div>
+
+      </div><!-- /diag-body -->
+
+      <!-- footer nav -->
+      <div class="diag-footer">
+        <button class="btn-back" id="btn-back" onclick="prevStep()" style="visibility:hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          戻る
+        </button>
+        <button class="btn-next" id="btn-next" onclick="nextStep()">
+          次へ
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULT SCREEN -->
+<section id="result-screen">
+  <div class="result-hero">
+    <div style="position:relative">
+      <p class="result-type-badge" id="r-type-badge">Data 360 先行整備型</p>
+      <h2 class="result-title">御社のAIエージェント実装 Readiness</h2>
+      <div class="score-circle">
+        <span class="score-num" id="r-score">68</span>
+        <span class="score-denom">/ 100点</span>
+      </div>
+      <p class="result-summary" id="r-summary" style="margin-top:64px">
+        AIエージェント活用の可能性は高い一方で、顧客データやナレッジの分散が実装時のボトルネックになる可能性があります。まずはデータ統合と顧客文脈の整備を進めることで、Agentforceの効果を最大化できます。
+      </p>
+    </div>
+  </div>
+
+  <div class="result-body">
+
+    <!-- 領域別スコア -->
+    <div class="result-card">
+      <h4>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        領域別スコア
+      </h4>
+      <div class="score-row">
+        <span class="score-row-label">業務プロセス</span>
+        <div class="score-bar-bg"><div class="score-bar-fill" id="bar-process" style="width:0%"></div></div>
+        <span class="score-val" id="val-process">—</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label">データ</span>
+        <div class="score-bar-bg"><div class="score-bar-fill" id="bar-data" style="width:0%; background:var(--sf-teal)"></div></div>
+        <span class="score-val" id="val-data">—</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label">Trust / Governance</span>
+        <div class="score-bar-bg"><div class="score-bar-fill" id="bar-trust" style="width:0%; background:#9050E9"></div></div>
+        <span class="score-val" id="val-trust">—</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label">ROI / 成果指標</span>
+        <div class="score-bar-bg"><div class="score-bar-fill" id="bar-roi" style="width:0%; background:var(--sf-orange)"></div></div>
+        <span class="score-val" id="val-roi">—</span>
+      </div>
+      <div class="score-row">
+        <span class="score-row-label">推進体制</span>
+        <div class="score-bar-bg"><div class="score-bar-fill" id="bar-org" style="width:0%; background:var(--sf-green)"></div></div>
+        <span class="score-val" id="val-org">—</span>
+      </div>
+    </div>
+
+    <!-- おすすめユースケース -->
+    <div class="result-card">
+      <h4>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        御社におすすめの初期ユースケース
+      </h4>
+      <div class="uc-list" id="uc-list">
+        <div class="uc-item"><span class="uc-num">1</span> 問い合わせ内容の自動分類</div>
+        <div class="uc-item"><span class="uc-num">2</span> 顧客対応履歴の要約</div>
+        <div class="uc-item"><span class="uc-num">3</span> オペレーター向け回答案作成</div>
+        <div class="uc-item"><span class="uc-num">4</span> ナレッジ検索支援</div>
+        <div class="uc-item"><span class="uc-num">5</span> 営業担当向け次アクション提示</div>
+      </div>
+    </div>
+
+    <!-- 実装前に整えるべきこと -->
+    <div class="result-card">
+      <h4>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        実装前に整えるべきこと
+      </h4>
+      <div class="todo-list" id="todo-list">
+        <div class="todo-item"><span class="todo-dot"></span>顧客ID・契約情報・問い合わせ履歴の統合</div>
+        <div class="todo-item"><span class="todo-dot"></span>AIが参照するナレッジソースの整理</div>
+        <div class="todo-item"><span class="todo-dot"></span>個人情報を含むデータの利用ルール定義</div>
+        <div class="todo-item"><span class="todo-dot"></span>人間承認を残す業務範囲の明確化</div>
+        <div class="todo-item"><span class="todo-dot"></span>PoC成功基準の設定</div>
+      </div>
+    </div>
+
+    <!-- 90日ロードマップ -->
+    <div class="result-card">
+      <h4>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        90日ロードマップ
+      </h4>
+      <div class="roadmap">
+        <div class="roadmap-phase">
+          <div class="roadmap-circle" style="background:var(--sf-blue)">1</div>
+          <div class="roadmap-content">
+            <h5>1〜30日目：ユースケースを決める</h5>
+            <p>対象業務を1〜2つに絞り、AIに任せる範囲と成功指標を定義する。</p>
+          </div>
+        </div>
+        <div class="roadmap-phase">
+          <div class="roadmap-circle" style="background:var(--sf-teal)">2</div>
+          <div class="roadmap-content">
+            <h5>31〜60日目：データとガードレールを整える</h5>
+            <p>顧客データの棚卸し、ナレッジ整備、個人情報利用ルールとAI権限の設計。</p>
+          </div>
+        </div>
+        <div class="roadmap-phase">
+          <div class="roadmap-circle" style="background:var(--sf-green)">3</div>
+          <div class="roadmap-content">
+            <h5>61〜90日目：初期ユースケースを検証する</h5>
+            <p>Agentforce初期シナリオ設計、限定業務でPoC実施、KPI測定と課題整理。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /result-body -->
+
+  <!-- CTA -->
+  <div class="result-cta">
+    <h3>次のステップを、Salesforceと一緒に。</h3>
+    <p id="r-cta-sub">まずは対象業務と必要データを整理する「AIエージェント実装ワークショップ」がおすすめです。</p>
+    <div class="cta-buttons">
+      <button class="btn-cta-primary" id="r-cta-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        個別レビューを申し込む
+      </button>
+      <button class="btn-cta-ghost">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        診断結果をPDFで受け取る
+      </button>
+      <button class="btn-cta-ghost">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+        Agentforce / Data 360の活用例を見る
+      </button>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  © 2026 Salesforce Japan. All Rights Reserved.
+  &nbsp;|&nbsp; <a href="#">プライバシーポリシー</a>
+  &nbsp;|&nbsp; <a href="#">利用規約</a>
+</footer>
+
+<script>
+  let currentStep = 0;
+  const TOTAL_STEPS = 6;
+
+  const stepLabels = ['基本情報','業務プロセス','データ','Trust/Gov','ROI/体制','連絡先'];
+
+  function showDiagnostic() {
+    document.getElementById('landing-screen').style.display = 'none';
+    document.getElementById('diagnostic-screen').style.display = 'block';
+    window.scrollTo(0,0);
+  }
+
+  function updateUI() {
+    // panels
+    document.querySelectorAll('.step-panel').forEach((p,i) => {
+      p.classList.toggle('active', i === currentStep);
+    });
+    // tabs
+    document.querySelectorAll('.step-tab').forEach((t,i) => {
+      t.classList.remove('active','done');
+      if (i === currentStep) t.classList.add('active');
+      else if (i < currentStep) t.classList.add('done');
+    });
+    // progress
+    const pct = Math.round((currentStep / (TOTAL_STEPS - 1)) * 100);
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-label').textContent = '進捗 ' + pct + '%';
+    // header desc
+    document.getElementById('step-desc-header').textContent =
+      'Step ' + (currentStep + 1) + ' / ' + TOTAL_STEPS + ' — ' + stepLabels[currentStep];
+    // buttons
+    const back = document.getElementById('btn-back');
+    const next = document.getElementById('btn-next');
+    back.style.visibility = currentStep === 0 ? 'hidden' : 'visible';
+    if (currentStep === TOTAL_STEPS - 1) {
+      next.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> 診断結果を見る`;
+    } else {
+      next.innerHTML = `次へ <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+    }
+  }
+
+  function nextStep() {
+    if (currentStep < TOTAL_STEPS - 1) {
+      currentStep++;
+      updateUI();
+      window.scrollTo(0, document.getElementById('diagnostic-screen').offsetTop - 20);
+    } else {
+      showResult();
+    }
+  }
+
+  function prevStep() {
+    if (currentStep > 0) {
+      currentStep--;
+      updateUI();
+    }
+  }
+
+  function selectRadio(el, name) {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      r.closest('.radio-opt').classList.remove('selected');
+    });
+    el.classList.add('selected');
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('selected', el.querySelector('input').checked);
+  }
+
+  // ─── Scoring & result logic ───
+
+  function getVal(name) {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? parseInt(el.value) || 0 : 2; // default mid
+  }
+
+  function calcScores() {
+    const process = getVal('q4') + getVal('q5') + getVal('q6') + getVal('q7');
+    const data = getVal('q9') + getVal('q11') + getVal('q12') + getVal('q13') - 4; // 4-16 → adj
+    const trust = getVal('q14') + getVal('q15') + getVal('q16') - 3;
+    const roi = getVal('q20') - 1;
+    const org = getVal('q21') - 1;
+
+    // map to display points
+    const procPt = Math.round((process - 4) / 12 * 25);
+    const dataPt = Math.round((data) / 12 * 25);
+    const trustPt = Math.round((trust) / 9 * 20);
+    const roiPt = Math.round((roi) / 3 * 15);
+    const orgPt = Math.round((org) / 3 * 15);
+    const total = procPt + dataPt + trustPt + roiPt + orgPt;
+
+    return { procPt, dataPt, trustPt, roiPt, orgPt, total };
+  }
+
+  function getType(scores) {
+    const { procPt, dataPt, trustPt, roiPt, orgPt, total } = scores;
+    if (total >= 70 && procPt >= 18 && dataPt >= 18) return 'A';
+    if (dataPt < 15) return 'B';
+    if (trustPt < 12) return 'C';
+    if (procPt < 14) return 'D';
+    return 'E';
+  }
+
+  const TYPES = {
+    A: {
+      badge: 'Agentforce Quick Win 型',
+      summary: '業務プロセスが整理されており、データやナレッジも一定程度揃っています。限定業務でAgentforceの初期ユースケースを設計し、早期に効果検証が可能な状態です。',
+      ctaSub: '初期ユースケース選定から90日PoC設計まで、専任コンサルタントがご支援します。',
+      ctaLabel: 'Agentforce初期ユースケース相談を申し込む',
+      todos: ['初期ユースケース（1〜2業務）の選定','PoC成功基準の定義','Agentforceシナリオ設計','KPI設定と測定体制の構築'],
+      ucs: ['問い合わせ自動分類・優先度付け','対応履歴の要約・次アクション提示','回答案の自動生成','ナレッジ検索支援','営業向けアクション提案'],
+    },
+    B: {
+      badge: 'Data 360 先行整備型',
+      summary: 'AIエージェント活用の可能性は高い一方で、顧客データやナレッジの分散が実装時のボトルネックになる可能性があります。先にデータ統合・顧客文脈の整備を進めることが重要です。',
+      ctaSub: '顧客データ棚卸しからData 360活用シナリオ設計まで、ご相談ください。',
+      ctaLabel: 'Data 360活用相談を申し込む',
+      todos: ['顧客ID・契約情報・問い合わせ履歴の統合','AIが参照するナレッジソースの整理','個人情報を含むデータの利用ルール定義','人間承認を残す業務範囲の明確化','PoC成功基準の設定'],
+      ucs: ['顧客対応履歴の要約','問い合わせ内容の自動分類','オペレーター向け回答案作成','ナレッジ検索支援','営業担当向け次アクション提示'],
+    },
+    C: {
+      badge: 'Trust / Governance 先行型',
+      summary: '個人情報の取り扱い、AIの権限設計、監査要件への懸念が大きい状態です。ガードレールを設計することで、顧客体験やコンプライアンスを損なわずにAI活用を進められます。',
+      ctaSub: 'AIガバナンス設計から Trust Layer の適用領域まで、専門家がご支援します。',
+      ctaLabel: 'AIガバナンス設計相談を申し込む',
+      todos: ['AIに渡してよいデータ/渡してはいけないデータの整理','Human-in-the-loop設計','AIアクション権限の定義','監査ログ・説明責任の要件整理','Trust Layerの適用領域確認'],
+      ucs: ['参照・提案のみの限定AIエージェント','人間承認付きの回答案生成','社内ヘルプデスク対応支援','コンプライアンス確認支援','監査対応ドキュメント要約'],
+    },
+    D: {
+      badge: '業務再設計 先行型',
+      summary: 'AIエージェントを導入する前に「どの業務をAIに任せるべきか」を整理することが重要です。AIが効果を出しやすい業務単位に分解することで、現実的な導入テーマが見えてきます。',
+      ctaSub: '業務分解ワークショップで、最初のAIエージェント化テーマを一緒に見つけます。',
+      ctaLabel: 'AIエージェント実装ワークショップを申し込む',
+      todos: ['現行業務フローの可視化','AIに任せる業務/人が担う業務の切り分け','初期ユースケース候補の洗い出し','業務別の難易度/効果マッピング','推進体制の組成'],
+      ucs: ['情報検索・FAQ参照の自動化','メール・議事録の要約','問い合わせの一次分類','定型レポートの自動生成','スケジュール・タスク管理支援'],
+    },
+    E: {
+      badge: '情報収集・構想形成型',
+      summary: 'AI活用に向けた情報収集・構想形成の段階です。まずは自社と近い業界・部門でどのような業務がAIエージェント化しやすいかを把握し、社内議論の共通言語を作ることが有効です。',
+      ctaSub: '業界別ユースケース集と入門資料をご用意しています。まずはダウンロードから。',
+      ctaLabel: 'AIエージェント入門資料をダウンロードする',
+      todos: ['業界別ユースケース集の確認','AIエージェント導入ステップの理解','社内啓蒙向け資料の準備','業務・データ・ガバナンスの簡易チェック'],
+      ucs: ['社内ヘルプデスク対応','FAQ自動応答','定型業務の自動化','社内ナレッジ検索','レポート・議事録の要約'],
+    },
+  };
+
+  function showResult() {
+    const scores = calcScores();
+    const type = getType(scores);
+    const t = TYPES[type];
+
+    document.getElementById('r-score').textContent = scores.total;
+    document.getElementById('r-type-badge').textContent = t.badge;
+    document.getElementById('r-summary').textContent = t.summary;
+    document.getElementById('r-cta-sub').textContent = t.ctaSub;
+    document.getElementById('r-cta-primary').innerHTML =
+      `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>${t.ctaLabel}`;
+
+    // score bars (animate)
+    setTimeout(() => {
+      setBars(scores);
+    }, 200);
+
+    // uc list
+    const ucList = document.getElementById('uc-list');
+    ucList.innerHTML = t.ucs.map((uc, i) =>
+      `<div class="uc-item"><span class="uc-num">${i+1}</span> ${uc}</div>`
+    ).join('');
+
+    // todo list
+    const todoList = document.getElementById('todo-list');
+    todoList.innerHTML = t.todos.map(td =>
+      `<div class="todo-item"><span class="todo-dot"></span>${td}</div>`
+    ).join('');
+
+    document.getElementById('diagnostic-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'block';
+    window.scrollTo(0,0);
+  }
+
+  function setBars(scores) {
+    function set(id, val, max) {
+      const el = document.getElementById(id);
+      if (el) el.style.width = Math.max(4, Math.round(val / max * 100)) + '%';
+    }
+    const valEls = {
+      'val-process': scores.procPt + ' / 25',
+      'val-data': scores.dataPt + ' / 25',
+      'val-trust': scores.trustPt + ' / 20',
+      'val-roi': scores.roiPt + ' / 15',
+      'val-org': scores.orgPt + ' / 15',
+    };
+    Object.entries(valEls).forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    });
+    set('bar-process', scores.procPt, 25);
+    set('bar-data', scores.dataPt, 25);
+    set('bar-trust', scores.trustPt, 20);
+    set('bar-roi', scores.roiPt, 15);
+    set('bar-org', scores.orgPt, 15);
+  }
+
+  // Init
+  updateUI();
+</script>
+</body>
+</html>
